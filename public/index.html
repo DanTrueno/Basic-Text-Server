@@ -1,1 +1,193 @@
-111
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Server</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            margin-top: 10px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #333;
+            flex: 1;
+            margin-right: 20px;
+        }
+
+        .box:last-child {
+            margin-right: 0;
+        }
+
+        #messages {
+            white-space: pre-wrap;
+        }
+
+        #logs {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        ul#fileList {
+            list-style: none;
+            padding: 0;
+        }
+
+        ul#fileList li {
+            margin-bottom: 5px;
+        }
+
+        ul#fileList li a {
+            color: #1e90ff;
+            text-decoration: none;
+        }
+
+        ul#fileList li a:hover {
+            text-decoration: underline;
+        }
+
+        #fileNameForm {
+            margin-top: 20px;
+            display: none;
+        }
+
+        #fileNameInput {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <textarea id="textInput" rows="4" placeholder="Писать сюда..."></textarea><br>
+    <button id="sendButton">Отправить</button>
+    <button id="copyButton">Сделать копию файла</button>
+
+    <div id="fileNameForm">
+        <label for="fileNameInput">Введите название нового файла:</label><br>
+        <input type="text" id="fileNameInput" placeholder="example.txt" /><br>
+        <button id="saveCopyButton">Сохранить</button>
+        <button id="cancelButton">Отменить</button>
+    </div>
+
+    <div class="container">
+        <div class="box">
+            <h2>Текст:</h2>
+            <div id="messages"></div>
+        </div>
+        <div class="box">
+            <h2>Список файлов:</h2>
+            <ul id="fileList"></ul>
+        </div>
+    </div>
+
+    <h2>Логи:</h2>
+    <div id="logs"></div>
+
+    <script>
+        const socket = io();
+
+        // Отправка текста на сервер
+        document.getElementById('sendButton').onclick = () => {
+            const text = document.getElementById('textInput').value;
+            socket.emit('send text', text);
+            document.getElementById('textInput').value = '';
+        };
+
+        // Кнопка для создания копии файла
+        document.getElementById('copyButton').onclick = () => {
+            document.getElementById('fileNameForm').style.display = 'block';
+        };
+
+        // Отмена копирования
+        document.getElementById('cancelButton').onclick = () => {
+            document.getElementById('fileNameForm').style.display = 'none';
+        };
+
+        // Сохранение копии файла
+        document.getElementById('saveCopyButton').onclick = () => {
+            const fileName = document.getElementById('fileNameInput').value.trim();
+            if (fileName) {
+                socket.emit('copy text', fileName);
+                document.getElementById('fileNameForm').style.display = 'none';
+                document.getElementById('fileNameInput').value = '';
+            } else {
+                alert("Введите название файла!");
+            }
+        };
+
+        // Получение нового текста от сервера
+        socket.on('new text', (text) => {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.textContent = text; // Очистка старого текста и отображение нового
+        });
+
+        // Загрузка текста при подключении
+        socket.on('load text', (text) => {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.textContent = text;
+        });
+
+        // Очистка сообщений на клиенте
+        socket.on('clear text', () => {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.textContent = '';
+        });
+
+        // Получение логов от сервера
+        socket.on('log', (logMessage) => {
+            const logsDiv = document.getElementById('logs');
+            const newLog = document.createElement('div');
+            newLog.textContent = logMessage;
+            logsDiv.appendChild(newLog);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        });
+
+        // Загрузка списка файлов
+        const loadFileList = () => {
+            fetch('/files')
+                .then(response => response.json())
+                .then(files => {
+                    const fileList = document.getElementById('fileList');
+                    fileList.innerHTML = '';
+                    files.forEach(file => {
+                        const listItem = document.createElement('li');
+                        const link = document.createElement('a');
+                        link.href = `/download/${file}`;
+                        link.textContent = file;
+                        link.download = file;
+                        listItem.appendChild(link);
+                        fileList.appendChild(listItem);
+                    });
+                })
+                .catch(err => console.error('Ошибка загрузки списка файлов:', err));
+        };
+
+        // Загрузка списка файлов при загрузке страницы
+        loadFileList();
+    </script>
+</body>
+</html>
