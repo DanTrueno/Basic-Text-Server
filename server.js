@@ -97,5 +97,5 @@ io.on('connection', (socket) => {
 
 // Запуск сервера
 server.listen(3000, () => {
-    console.log('http://45.43.90.198:3000');
+    console.log('Сервер запущен!');
 });
